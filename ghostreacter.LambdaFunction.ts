@@ -11,7 +11,6 @@ type SearchResult = {
 type GetReactionsResult = {
   message: {
     text: string;
-    user: string;
     reactions: {
       name: string;
       users: string[];
@@ -21,9 +20,8 @@ type GetReactionsResult = {
 
 const SLACK_TOKEN = process.env.SLACK_TOKEN!;
 const MY_MEMBER_ID = process.env.MY_MEMBER_ID!;
-
-const CHANNEL_NAME = "misc-aws-exam";
-const REACTION_NAME = "emo_cracker";
+const CHANNEL_NAME = process.env.CHANNEL_NAME!;
+const REACTION_NAME = process.env.REACTION_NAME!;
 
 export const handler = async () => {
   const searchResult = await searchMessage();
@@ -47,7 +45,7 @@ export const handler = async () => {
 
     const json = await addReaction(channelId, timestamp);
 
-    console.log("Result:", {
+    console.info("Result:", {
       result: JSON.stringify(json),
       timestamp,
       text: getReactionsResult.message.text,
@@ -60,13 +58,17 @@ export const handler = async () => {
 // ////////////////////////
 // LIB
 
-const isAlreadyReacted = (getReactionsResult: GetReactionsResult) =>
-  getReactionsResult.message.reactions
-    .find((r) => r.name === REACTION_NAME)
-    ?.users.includes(MY_MEMBER_ID) ?? true;
+const isAlreadyReacted = (getReactionsResult: GetReactionsResult): boolean =>
+  getReactingUsers(getReactionsResult).includes(MY_MEMBER_ID) ?? true;
 
-const isReactedByThem = (getReactionsResult: GetReactionsResult, num: number) =>
-  getReactionsResult.message.reactions.length >= num;
+const isReactedByThem = (
+  getReactionsResult: GetReactionsResult,
+  num: number
+): boolean => getReactingUsers(getReactionsResult).length >= num;
+
+const getReactingUsers = (getReactionsResult: GetReactionsResult) =>
+  getReactionsResult.message.reactions.find((r) => r.name === REACTION_NAME)
+    ?.users ?? [];
 
 // ////////////////////////
 // FETCH
