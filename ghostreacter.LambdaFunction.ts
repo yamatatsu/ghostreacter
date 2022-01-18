@@ -36,6 +36,9 @@ export const handler = async () => {
     if (isAlreadyReacted(getReactionsResult)) {
       return;
     }
+    if (!isReactedByThem(getReactionsResult, 5)) {
+      return;
+    }
 
     console.info("Target:", {
       timestamp,
@@ -61,6 +64,9 @@ const isAlreadyReacted = (getReactionsResult: GetReactionsResult) =>
   getReactionsResult.message.reactions
     .find((r) => r.name === REACTION_NAME)
     ?.users.includes(MY_MEMBER_ID) ?? true;
+
+const isReactedByThem = (getReactionsResult: GetReactionsResult, num: number) =>
+  getReactionsResult.message.reactions.length >= num;
 
 // ////////////////////////
 // FETCH
