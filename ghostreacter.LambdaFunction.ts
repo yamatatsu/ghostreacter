@@ -21,53 +21,67 @@ type GetReactionsResult = {
 const SLACK_TOKEN = process.env.SLACK_TOKEN!;
 const MY_MEMBER_ID = process.env.MY_MEMBER_ID!;
 const CHANNEL_NAME = process.env.CHANNEL_NAME!;
-const REACTION_NAME = process.env.REACTION_NAME!;
+const REACTION_NAMES = process.env.REACTION_NAMES?.split(",") ?? [];
 
 export const handler = async () => {
-  const searchResult = await searchMessage();
-  const mapPromise = searchResult.messages.matches.map(async (res) => {
-    const channelId = res.channel.id;
-    const timestamp = res.ts;
+  const reactionsMappedPromise = REACTION_NAMES.map(async (reactionName) => {
+    const searchResult = await searchMessage(reactionName);
+    const messagesMappedPromise = searchResult.messages.matches.map(
+      async (res) => {
+        const channelId = res.channel.id;
+        const timestamp = res.ts;
 
-    const getReactionsResult = await getReactions(channelId, timestamp);
+        const getReactionsResult = await getReactions(channelId, timestamp);
 
-    if (isAlreadyReacted(getReactionsResult)) {
-      return;
-    }
-    if (!isReactedByThem(getReactionsResult, 5)) {
-      return;
-    }
+        if (isAlreadyReacted(getReactionsResult, reactionName)) {
+          return;
+        }
+        if (!isReactedByThem(getReactionsResult, reactionName, 5)) {
+          return;
+        }
 
-    console.info("Target:", {
-      timestamp,
-      text: getReactionsResult.message.text,
-    });
+        console.info("Target:", {
+          timestamp,
+          text: getReactionsResult.message.text,
+        });
 
-    const json = await addReaction(channelId, timestamp);
+        const json = await addReaction(channelId, timestamp, reactionName);
 
-    console.info("Result:", {
-      result: JSON.stringify(json),
-      timestamp,
-      text: getReactionsResult.message.text,
-    });
+        console.info("Result:", {
+          result: JSON.stringify(json),
+          timestamp,
+          text: getReactionsResult.message.text,
+        });
+      }
+    );
+
+    await Promise.all(messagesMappedPromise);
   });
 
-  await Promise.all(mapPromise);
+  await Promise.all(reactionsMappedPromise);
 };
 
 // ////////////////////////
 // LIB
 
-const isAlreadyReacted = (getReactionsResult: GetReactionsResult): boolean =>
-  getReactingUsers(getReactionsResult).includes(MY_MEMBER_ID) ?? true;
+const isAlreadyReacted = (
+  getReactionsResult: GetReactionsResult,
+  reactionName: string
+): boolean =>
+  getReactingUsers(getReactionsResult, reactionName).includes(MY_MEMBER_ID) ??
+  true;
 
 const isReactedByThem = (
   getReactionsResult: GetReactionsResult,
+  reactionName: string,
   num: number
-): boolean => getReactingUsers(getReactionsResult).length >= num;
+): boolean => getReactingUsers(getReactionsResult, reactionName).length >= num;
 
-const getReactingUsers = (getReactionsResult: GetReactionsResult) =>
-  getReactionsResult.message.reactions.find((r) => r.name === REACTION_NAME)
+const getReactingUsers = (
+  getReactionsResult: GetReactionsResult,
+  reactionName: string
+) =>
+  getReactionsResult.message.reactions.find((r) => r.name === reactionName)
     ?.users ?? [];
 
 // ////////////////////////
@@ -76,11 +90,11 @@ const getReactingUsers = (getReactionsResult: GetReactionsResult) =>
 /**
  * @see https://api.slack.com/methods/search.messages
  */
-async function searchMessage() {
+async function searchMessage(reactionName: string) {
   const json = await fetchSlackApi("search.messages", {
-    query: `in:#${CHANNEL_NAME} has::${REACTION_NAME}:`,
+    query: `in:#${CHANNEL_NAME} has::${reactionName}:`,
     sort: "timestamp",
-    count: "10",
+    count: "5",
     sort_dir: "desc",
   });
   return json as SearchResult;
@@ -97,11 +111,15 @@ async function getReactions(channel: string, timestamp: string) {
 /**
  * @see https://api.slack.com/methods/reactions.add
  */
-async function addReaction(channel: string, timestamp: string) {
+async function addReaction(
+  channel: string,
+  timestamp: string,
+  reactionName: string
+) {
   const json = await fetchSlackApi("reactions.add", {
     channel,
     timestamp,
-    name: REACTION_NAME,
+    name: reactionName,
   });
   return json;
 }
