@@ -1,6 +1,7 @@
 import fetch from "node-fetch";
+import { filter, from, map, mergeMap, of, tap } from "rxjs";
 
-type SearchResult = {
+type ResultOfSearching = {
   messages: {
     matches: {
       channel: { id: string };
@@ -8,7 +9,7 @@ type SearchResult = {
     }[];
   };
 };
-type GetReactionsResult = {
+type ResultOfGettingReactions = {
   message: {
     text: string;
     reactions: {
@@ -23,66 +24,51 @@ const MY_MEMBER_ID = process.env.MY_MEMBER_ID!;
 const CHANNEL_NAME = process.env.CHANNEL_NAME!;
 const REACTION_NAMES = process.env.REACTION_NAMES?.split(",") ?? [];
 
-export const handler = async () => {
-  const reactionsMappedPromise = REACTION_NAMES.map(async (reactionName) => {
-    const searchResult = await searchMessage(reactionName);
-    const messagesMappedPromise = searchResult.messages.matches.map(
-      async (res) => {
-        const channelId = res.channel.id;
-        const timestamp = res.ts;
-
-        const getReactionsResult = await getReactions(channelId, timestamp);
-
-        if (isAlreadyReacted(getReactionsResult, reactionName)) {
-          return;
-        }
-        if (!isReactedByThem(getReactionsResult, reactionName, 5)) {
-          return;
-        }
-
-        console.info("Target:", {
-          timestamp,
-          text: getReactionsResult.message.text,
-        });
-
-        const json = await addReaction(channelId, timestamp, reactionName);
-
-        console.info("Result:", {
-          result: JSON.stringify(json),
-          timestamp,
-          text: getReactionsResult.message.text,
-        });
-      }
-    );
-
-    await Promise.all(messagesMappedPromise);
-  });
-
-  await Promise.all(reactionsMappedPromise);
-};
-
-// ////////////////////////
-// LIB
-
-const isAlreadyReacted = (
-  getReactionsResult: GetReactionsResult,
-  reactionName: string
-): boolean =>
-  getReactingUsers(getReactionsResult, reactionName).includes(MY_MEMBER_ID) ??
-  true;
-
-const isReactedByThem = (
-  getReactionsResult: GetReactionsResult,
-  reactionName: string,
-  num: number
-): boolean => getReactingUsers(getReactionsResult, reactionName).length >= num;
-
-const getReactingUsers = (
-  getReactionsResult: GetReactionsResult,
-  reactionName: string
-) =>
-  getReactionsResult.message.reactions.find((r) => r.name === reactionName)
-    ?.users ?? [];
+export const handler = () =>
+  from(REACTION_NAMES)
+    .pipe(
+      mergeMap((reactionName) =>
+        of(reactionName).pipe(
+          mergeMap(searchMessage),
+          mergeMap((result) => result.messages.matches),
+          map((match) => ({
+            channel: match.channel.id,
+            timestamp: match.ts,
+          })),
+          mergeMap(({ channel, timestamp }) =>
+            of({ channel, timestamp }).pipe(
+              mergeMap(getReactions),
+              map((result) => result.message),
+              mergeMap(({ text, reactions }) =>
+                of(0).pipe(
+                  map(
+                    () =>
+                      reactions.find((r) => r.name === reactionName)?.users ??
+                      []
+                  ),
+                  filter(
+                    (reactingUsers) => !reactingUsers.includes(MY_MEMBER_ID)
+                  ),
+                  filter((reactingUsers) => reactingUsers.length >= 5),
+                  tap(() => {
+                    console.info("Target:", { timestamp, text });
+                  }),
+                  mergeMap(() => addReaction(channel, timestamp, reactionName)),
+                  tap((json) => {
+                    console.info("Result:", {
+                      result: JSON.stringify(json),
+                      timestamp,
+                      text,
+                    });
+                  })
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+    .toPromise();
 
 // ////////////////////////
 // FETCH
@@ -90,22 +76,22 @@ const getReactingUsers = (
 /**
  * @see https://api.slack.com/methods/search.messages
  */
-async function searchMessage(reactionName: string) {
+async function searchMessage(reactionName: string): Promise<ResultOfSearching> {
   const json = await fetchSlackApi("search.messages", {
     query: `in:#${CHANNEL_NAME} has::${reactionName}:`,
     sort: "timestamp",
     count: "5",
     sort_dir: "desc",
   });
-  return json as SearchResult;
+  return json as ResultOfSearching;
 }
 
 /**
  * @see https://api.slack.com/methods/reactions.get
  */
-async function getReactions(channel: string, timestamp: string) {
-  const json = await fetchSlackApi("reactions.get", { channel, timestamp });
-  return json as GetReactionsResult;
+async function getReactions(params: { channel: string; timestamp: string }) {
+  const json = await fetchSlackApi("reactions.get", params);
+  return json as ResultOfGettingReactions;
 }
 
 /**
@@ -148,4 +134,7 @@ async function fetchSlackApi(
 }
 
 // for debug
-// handler();
+// handler().then(
+//   () => console.info("Success."),
+//   (err) => console.error(err)
+// );
