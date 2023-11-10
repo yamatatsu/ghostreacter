@@ -23,6 +23,7 @@ const SLACK_TOKEN = process.env.SLACK_TOKEN!;
 const MY_MEMBER_ID = process.env.MY_MEMBER_ID!;
 const CHANNEL_NAME = process.env.CHANNEL_NAME!;
 const REACTION_NAMES = process.env.REACTION_NAMES?.split(",") ?? [];
+const REACTION_THRESHOLD = parseInt(process.env.REACTION_THRESHOLD!);
 
 export const handler = () =>
   from(REACTION_NAMES)
@@ -49,7 +50,10 @@ export const handler = () =>
                   filter(
                     (reactingUsers) => !reactingUsers.includes(MY_MEMBER_ID)
                   ),
-                  filter((reactingUsers) => reactingUsers.length >= 5),
+                  filter(
+                    (reactingUsers) =>
+                      reactingUsers.length >= REACTION_THRESHOLD
+                  ),
                   tap(() => {
                     console.info("Target:", { timestamp, text });
                   }),

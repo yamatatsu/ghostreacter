@@ -29,3 +29,7 @@ Scope は`reactions:read`,`reactions:write`,`search:read`の 3 つを付けと�
 #### REACTION_NAME
 
 みんなと同じように反応したい絵文字名
+
+#### REACTION_THRESHOLD
+
+右にならえ。何人がリアクションしたら自分も追従するか
