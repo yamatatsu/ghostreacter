@@ -1,4 +1,3 @@
-import fetch from "node-fetch";
 import { filter, from, map, mergeMap, of, tap } from "rxjs";
 
 type ResultOfSearching = {

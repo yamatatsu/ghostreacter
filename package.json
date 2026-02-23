@@ -5,18 +5,18 @@
     "cdk": "cdk"
   },
   "devDependencies": {
-    "@types/node": "20.9.0",
-    "aws-cdk": "2.105.0",
-    "esbuild": "^0.19.5",
-    "esbuild-register": "^3.5.0",
-    "prettier": "^3.0.3",
-    "typescript": "~5.2.2"
+    "@types/node": "25.2.3",
+    "aws-cdk": "2.1106.0",
+    "esbuild": "^0.27.3",
+    "esbuild-register": "^3.6.0",
+    "prettier": "^3.8.1",
+    "typescript": "~5.9.3"
   },
   "dependencies": {
-    "aws-cdk-lib": "2.105.0",
-    "constructs": "^10.3.0",
-    "dotenv": "^16.3.1",
+    "aws-cdk-lib": "2.238.0",
+    "constructs": "^10.4.5",
+    "dotenv": "^17.3.1",
     "node-fetch": "^3.3.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.2"
   }
 }
