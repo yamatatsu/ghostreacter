@@ -15,6 +15,7 @@ const stack = new cdk.Stack(app, "Ghostreacter");
 
 const handler = new lambdaNodejs.NodejsFunction(stack, "LambdaFunction", {
   runtime: lambda.Runtime.NODEJS_LATEST,
+  architecture: lambda.Architecture.ARM_64,
   environment: {
     SLACK_TOKEN,
     MY_MEMBER_ID,
@@ -22,6 +23,9 @@ const handler = new lambdaNodejs.NodejsFunction(stack, "LambdaFunction", {
     REACTION_NAMES,
     REACTION_THRESHOLD,
   },
+  loggingFormat: lambda.LoggingFormat.JSON,
+  applicationLogLevelV2: lambda.ApplicationLogLevel.INFO,
+  systemLogLevelV2: lambda.SystemLogLevel.INFO,
 });
 
 new events.Rule(stack, "ScheduledRule", {

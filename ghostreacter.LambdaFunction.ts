@@ -124,6 +124,8 @@ async function fetchSlackApi(
   params: Record<string, string>
 ) {
   const url = `${URL_BASE}/${method}?${new URLSearchParams(params).toString()}`;
+  console.info("[Request Slack API]", {url});
+
   const result = await fetch(url, {
     method: methodMap[method],
     headers: {
@@ -133,6 +135,8 @@ async function fetchSlackApi(
   });
 
   const json = await result.json();
+  console.info("[Response Slack API]", {json});
+
   return json;
 }
 
